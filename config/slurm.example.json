@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "ssh_host_alias": "",
+  "remote_work_root": "",
+  "partition": "",
+  "account": "",
+  "cpus": null,
+  "memory_mb": null,
+  "time_minutes": null,
+  "xtb_executable": "",
+  "environment_setup": "",
+  "site_preamble": ""
+}

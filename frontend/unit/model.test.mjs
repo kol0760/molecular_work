@@ -1,0 +1,8 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {parseXYZ,formatXYZ,makeHistory,commit,undo,redo,translate,rotate,measurement} from '../src/model.ts';
+const xyz='3\nWater\nO 0 0 0\nH 1 0 0\nH 0 1 0\n';
+test('XYZ validation and canonical formatting',()=>{const a=parseXYZ(xyz);assert.equal(a.length,3);assert.deepEqual(parseXYZ(formatXYZ(a)),a);for(const bad of ['1\nx\nH nan 0 0',xyz+'H 0 0 1','2\nx\nH 0 0 0\nH 0 0 0'])assert.throws(()=>parseXYZ(bad));});
+test('selected-atom transform and undo redo branch',()=>{const a=parseXYZ(xyz);let h=makeHistory(a,xyz);const moved=translate(a,[1],[1,2,3]);assert.deepEqual(moved[0],a[0]);assert.deepEqual(moved[1].xyz,[2,2,3]);h=commit(h,moved);assert.deepEqual(undo(h).present.atoms,a);assert.deepEqual(redo(undo(h)).present.atoms,moved);assert.equal(commit(undo(h),translate(a,[2],[0,0,1])).future.length,0);});
+test('rotation preserves selected distance and leaves other atoms intact',()=>{const a=parseXYZ(xyz);const r=rotate(a,[0,1],'z',90);assert.deepEqual(r[2],a[2]);assert(Math.abs(Math.hypot(...r[0].xyz.map((x,i)=>x-r[1].xyz[i]))-1)<1e-10);});
+test('distance angle and dihedral are real geometry',()=>{const a=parseXYZ(xyz);assert.equal(measurement(a,[0,1]).value,1);assert.equal(measurement(a,[1,0,2]).value,90);assert.equal(measurement(a,[0]).kind,'Select 2–4 atoms');const d=[...a,{element:'H',xyz:[0,1,1]}];assert(Number.isFinite(measurement(d,[1,0,2,3]).value));});
+test('committed coordinates equal their actual submitted XYZ snapshot',()=>{const a=parseXYZ('1\nH\nH .7629844 0 0\n');const h=commit(makeHistory(a),translate(a,[0],[.2,0,0]));assert.deepEqual(h.present.atoms,parseXYZ(h.present.xyz));});

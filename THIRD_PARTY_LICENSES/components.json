@@ -1,0 +1,74 @@
+[
+  {
+    "package": "3dmol",
+    "version": "2.5.3",
+    "license": "BSD-3-Clause",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "iobuffer",
+    "version": "5.4.0",
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "netcdfjs",
+    "version": "3.0.0",
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "pako",
+    "version": "2.2.0",
+    "license": "(MIT AND Zlib)",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "react",
+    "version": "19.2.0",
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "react-dom",
+    "version": "19.2.0",
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "scheduler",
+    "version": "0.27.0",
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "upng-js",
+    "version": "2.1.0",
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ]
+  },
+  {
+    "package": "upng-js/pako",
+    "version": "1.0.11",
+    "license": "(MIT AND Zlib)",
+    "license_files": [
+      "LICENSE"
+    ]
+  }
+]

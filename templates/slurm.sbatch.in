@@ -1,0 +1,15 @@
+#!/bin/bash
+# INCOMPLETE TEMPLATE: administrator must configure/review before use.
+# Resource directives and fixed job identity are generated as sbatch argv.
+set -euo pipefail
+umask 077
+# Bash file-size limit in KiB: bound each engine/scheduler output file.
+ulimit -f 20480
+__SITE_PREAMBLE__
+__ENVIRONMENT_SETUP__
+export OMP_NUM_THREADS=__CPUS__ OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export OMP_STACKSIZE=64M
+# Workdir is a newly created owned directory, supplied by --chdir.
+__XTB_VERSION_COMMAND__ > engine.version 2>&1
+# Fixed GFN2 gas-phase arguments; no user-provided command string.
+__XTB_COMMAND__ > output.log 2>&1

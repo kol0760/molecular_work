@@ -1,0 +1,1 @@
+{"name":"molecular-workbench","private":true,"version":"0.1.0","type":"module","scripts":{"build":"tsc --noEmit && vite build","test:e2e":"playwright test"},"dependencies":{"react":"19.2.0","react-dom":"19.2.0","3dmol":"2.5.3"},"devDependencies":{"@types/react":"19.2.2","@types/react-dom":"19.2.2","typescript":"5.9.3","vite":"7.1.12","@playwright/test":"1.56.1"}}
