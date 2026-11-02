@@ -71,7 +71,7 @@ def test_engine_matches_direct_cli(tmp_path):
             j=wait(c,submit(c,mode))
             direct=tmp_path/mode;direct.mkdir()
             (direct/'engine.xyz').write_text((tmp_path/'state'/j['id']/'engine.xyz').read_text())
-            p=subprocess.run(j['command'],cwd=direct,env=JobStore.env(),capture_output=True,text=True,timeout=20)
+            p=subprocess.run(j['command'],cwd=direct,env=JobStore.env(),capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=20)
             assert p.returncode==0
             out=(direct/'xtbopt.xyz').read_text() if mode=='opt' else None
             r=parse_result(p.stdout+p.stderr,mode,j['version'],out,parse_xyz(WATER))

@@ -33,7 +33,7 @@ class JobStore:
         self.db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, data TEXT NOT NULL)');self.db.commit()
         self.version=None;self.engine_error=None;self.engine_warning=None
         try:
-            v=subprocess.run([str(ENGINE),'--version'],capture_output=True,text=True,timeout=5,env=self.env())
+            v=subprocess.run([str(ENGINE),'--version'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=5,env=self.env())
             match=re.search(r'xtb version\s+(\d+\.\d+\.\d+)',v.stdout+v.stderr)
             if v.returncode: raise RuntimeError(f'xTB version probe failed (exit {v.returncode}); check executable and DLL dependencies.')
             self.version=match[1] if match else None
