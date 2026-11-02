@@ -26,10 +26,11 @@ class Config:
     def __init__(self,data):self.data=data
     @classmethod
     def load(cls,path):
+        if os.name=='nt':return cls({}) # POSIX administrator scaffold only
         try:
             p=Path(path)
             if p.is_symlink() or p.stat().st_uid!=os.getuid() or p.stat().st_mode&0o077:return cls({})
-            return cls(json.loads(p.read_text()))
+            return cls(json.loads(p.read_text(encoding='utf-8')))
         except (OSError,ValueError):return cls({})
     @property
     def ready(self):
@@ -93,13 +94,13 @@ class SlurmAdapter:
         return p
     def save(self,j):
         p=self.directory(j['id'])/'receipt.json';tmp=p.with_suffix('.tmp')
-        fd=os.open(tmp,os.O_WRONLY|os.O_CREAT|os.O_TRUNC|os.O_NOFOLLOW,0o600)
+        fd=os.open(tmp,os.O_WRONLY|os.O_CREAT|os.O_TRUNC|getattr(os,'O_NOFOLLOW',0),0o600)
         with os.fdopen(fd,'w') as f:json.dump(j,f,allow_nan=False)
         tmp.replace(p)
     def get(self,jid):
         p=self.directory(jid)/'receipt.json'
         if p.is_symlink():raise Unsafe('Unsafe receipt.')
-        j=json.loads(p.read_text())
+        j=json.loads(p.read_text(encoding='utf-8'))
         d=self.config.data
         if j['id']!=jid or j['name']!='wb_'+jid or j['remote_dir']!=d.get('remote_work_root','')+'/'+jid or j['host']!=d.get('ssh_host_alias'):raise Unsafe('Receipt/config identity mismatch.')
         if j.get('slurm_id') is not None and not re.fullmatch(r'[1-9][0-9]{0,19}',j['slurm_id']):raise Unsafe('Invalid scheduler identity.')
@@ -112,7 +113,7 @@ class SlurmAdapter:
         d=self.config.data
         command=[d['xtb_executable'],'engine.xyz','--gfn','2','--chrg',str(data['charge']),'--uhf',str(data['uhf']),'--acc','1.0','--iterations','250']
         if data['mode']=='opt':command+=['--opt','normal','--cycles','200']
-        script=(Path(__file__).resolve().parents[1]/'templates/slurm.sbatch.in').read_text()
+        script=(Path(__file__).resolve().parents[1]/'templates/slurm.sbatch.in').read_text(encoding='utf-8')
         values={'SITE_PREAMBLE':d['site_preamble'],'ENVIRONMENT_SETUP':d['environment_setup'],'CPUS':str(d['cpus']),'XTB_VERSION_COMMAND':shlex.join([d['xtb_executable'],'--version']),'XTB_COMMAND':shlex.join(command)}
         # Replace only template tokens, never reinterpret administrator shell text.
         return re.sub(r'__([A-Z_]+)__',lambda m:values[m[1]],script)
@@ -122,7 +123,7 @@ class SlurmAdapter:
         v=validate_request(data['xyz'],data['charge'],data['uhf']);d=self.config.data
         self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
         jid=uuid.uuid4().hex;p=self.directory(jid);p.mkdir(mode=0o700)
-        (p/'input.xyz').write_text(data['xyz']);(p/'engine.xyz').write_text(v['normalized_xyz'])
+        (p/'input.xyz').write_text(data['xyz'],encoding='utf-8');(p/'engine.xyz').write_text(v['normalized_xyz'],encoding='utf-8')
         j={**data,'id':jid,'name':'wb_'+jid,'host':d['ssh_host_alias'],'remote_dir':d['remote_work_root']+'/'+jid,'normalized_sha256':hashlib.sha256(v['normalized_xyz'].encode()).hexdigest(),'slurm_id':None,'state':'staging','version':None,'cancel_requested':False,'result':None,'created':time.time(),'method':'GFN2-xTB','phase':'gas','coordinate_unit':'angstrom','resources':{k:d[k] for k in ('cpus','memory_mb','time_minutes','partition','account')},'input_sha256':hashlib.sha256(data['xyz'].encode()).hexdigest(),'script_sha256':hashlib.sha256(self.script(data).encode()).hexdigest()}
         self.save(j)
         try:self.remote('stage',j,data=json.dumps({'xyz':v['normalized_xyz'],'script':self.script(data)}).encode())
@@ -178,14 +179,14 @@ class SlurmAdapter:
         if q!={'state':'COMPLETED','exit_code':'0:0'}:raise Unsafe('Job has not completed cleanly; no scientific success claimed.')
         version=self._artifact(j,'engine.version').decode(errors='replace')
         match=re.search(r'xtb version\s+(\d+\.\d+\.\d+)',version)
-        if not match or match[1]!='6.6.1':raise Unsafe('Unverified remote xTB version; results not accepted.')
+        detected=match[1] if match else None
         log=self._artifact(j,'output.log').decode(errors='replace')
         xyz=self._artifact(j,'xtbopt.xyz').decode() if j['mode']=='opt' else None
-        result=parse_result(log,j['mode'],match[1],xyz,validate_request(j['xyz'],j['charge'],j['uhf'])['atoms'])
+        result=parse_result(log,j['mode'],detected,xyz,validate_request(j['xyz'],j['charge'],j['uhf'])['atoms'])
         if not result['valid']:result['final_xyz']=None
         directory=self.directory(jid)
         for name,content in [('engine.version',version),('output.log',log),('xtbopt.xyz',xyz)]:
-            if content is not None:(directory/name).write_text(content)
-        if result['valid']:(directory/'final.xyz').write_text(result['final_xyz'] if j['mode']=='opt' else (directory/'engine.xyz').read_text())
-        j.update(version=match[1],state='succeeded' if result['valid'] else 'failed',result=result);self.save(j)
+            if content is not None:(directory/name).write_text(content,encoding='utf-8')
+        if result['valid']:(directory/'final.xyz').write_text(result['final_xyz'] if j['mode']=='opt' else (directory/'engine.xyz').read_text(encoding='utf-8'),encoding='utf-8')
+        j.update(version=detected,state='succeeded' if result['valid'] else 'failed',result=result);self.save(j)
         return j

@@ -6,10 +6,10 @@
 
 ## Linux 启动
 
-前提：Linux、Python3.10+（含venv/pip）、已安装的**xTB6.6.1**。前端已构建，普通使用无需Node/npm。后端使用Linux进程组、fcntl锁、资源限制和父进程退出保护。
+前提：Linux、Python3.10+（含venv/pip）、可选的 xTB（计算时需要）。前端已构建，普通使用无需Node/npm。Linux 后端使用进程组、fcntl 锁、资源限制和父进程退出保护。
 
 1. 下载源码ZIP，解压到自己拥有的目录。建议Linux本地文件系统。
-2. 安装xTB6.6.1并确保Linux终端运行 `xtb --version` 可识别；或设置绝对路径 `WORKBENCH_XTB`。xTB单独安装，不随本包分发。官方安装说明：https://xtb-docs.readthedocs.io/en/latest/setup.html 。安装时务必检查实际版本，其他版本暂不接受科学结果。
+2. 安装 xTB 并确保 Linux 终端运行 `xtb --version` 可识别；或设置绝对路径 `WORKBENCH_XTB`。xTB单独安装，不随本包分发。官方安装说明：https://xtb-docs.readthedocs.io/en/latest/setup.html 。版本仅记录和提示，不按版本拒绝计算。
 3. 终端进入项目目录：
 
 ```bash
@@ -35,16 +35,36 @@ bash start-linux.sh
 
 该路径是示例，不代表你的实际安装位置。若8765已被其他应用占用，启动会失败；不会终止其他进程。不要同时启动两个实例。
 
-## Windows 启动：WSL2 路线
+## Windows 原生启动（无需 WSL）
 
-**不支持原生Windows Python后端**；Windows使用WSL2内的Linux后端，网页在Windows浏览器打开。Windows10/11的实际版本和虚拟化能力须满足微软WSL2要求。
+支持 Windows 10/11 x64，使用 Windows 自己的 Python、SQLite 和 xTB.exe。**不需要 WSL、Linux 发行版或 Bash。**
 
-1. 按[微软WSL安装文档](https://learn.microsoft.com/windows/wsl/install)安装WSL2及Linux发行版。必要时重启；这些系统操作由你自行完成，本项目不会自动修改Windows功能。
-2. 在WSL发行版内安装Python3.10+及venv/pip、xTB6.6.1。Windows原生的Python/xTB不能替代WSL内依赖。
-3. 解压项目后双击 **Start-Windows.cmd**。它只调用默认WSL发行版中的`start-linux.sh`。如果命令行窗口提示缺少依赖，按提示先在WSL内完成安装。
-4. Windows浏览器打开 **http://localhost:8765**。WSL的localhost转发取决于Windows/WSL配置；若不可用，先在WSL内验证Linux本机访问，不要直接扩大监听范围或关闭安全检查。
+1. 一次性安装 [Python 3.10+ x64](https://www.python.org/downloads/windows/)，保留 pip、venv 和 Python Launcher（或添加 Python 到 PATH）。
+2. 下载本仓库源码 ZIP，解压到自己拥有写权限的本地目录（不要直接在 ZIP 内运行）。普通使用不需要 Node/npm。
+3. 双击 **Start-Windows.cmd**。首次会创建本项目的 `.venv` 并联网安装锁定依赖；以后双击直接启动。程序就绪后会打开默认浏览器，地址为 **http://127.0.0.1:8765**。保持窗口开启，Ctrl+C 停止。端口占用时退出，不会杀掉其他程序。
+4. 查看和编辑结构不要求安装 xTB；计算需要另外安装原生 xTB。可从 [xTB 官方 v6.7.1 发布页](https://github.com/grimme-lab/xtb/releases/tag/v6.7.1) 下载 `xtb-6.7.1pre-windows-x86_64.zip`，按上游说明完整解压，保留随附 DLL/数据文件。这里的版本是已选用的测试样本，**不是运行版本白名单**。
+5. 将 `xtb.exe` 加入 PATH，或编辑首次生成的 `.private/local.json`，例如：
 
-推荐把项目放在WSL Linux文件系统；可在WSL终端进入项目后运行 `bash start-linux.sh`。Windows入口用`wsl.exe --cd`定位项目目录，不会安装WSL或创建凭据。此入口经过静态检查，**尚未在真实Windows/WSL2机器验收**。
+```json
+{"xtb_executable": "C:/Tools/xtb/bin/xtb.exe"}
+```
+
+填写实际绝对路径，允许空格和中文；JSON 中使用 `/` 或 `\\`。也可在命令提示符中设置 `set "WORKBENCH_XTB=C:\Tools\xtb\bin\xtb.exe"` 后执行启动脚本。找不到 DLL 时应完整解压官方包并检查其 PATH，不要复制单个 EXE。修改安装或路径后重启程序。
+
+缺少引擎时网页仍可编辑，计算设置会显示原因并禁用运行。后端选择显示本机 CPU；Slurm 显示未连接且不可选。xTB 版本会记录在作业来源信息中，未验证版本仅警告。真实启动失败、不收敛、无有效能量或无对应优化结构仍会失败。
+
+Windows 采用独占字节锁和 Windows Job Object：启动器拥有 API，计算 runner 拥有引擎及子进程；取消、超时或拥有者退出时只清理本程序的进程。每个计算设置 2GiB 总提交内存和 600 秒 CPU 时间上限，另有 600 秒墙钟和日志大小监控。Windows 没有 Linux `RLIMIT_FSIZE`，20MiB 日志通过轮询控制，可能短暂超出。`.private` 和 `state` 使用所在用户目录的继承 ACL；Windows 不使用 POSIX 0600/0700 权限验证，请放在只有自己可写的目录。
+
+诊断命令（原生命令提示符）：
+
+```bat
+Start-Windows.cmd check
+Start-Windows.cmd setup
+```
+
+`check` 不安装、不联网、不计算；`setup` 只初始化空配置和安装 Python 依赖。可设置 `WORKBENCH_NO_BROWSER=1` 禁止自动打开浏览器，`WORKBENCH_PORT=18765` 修改回环端口。不要在 Windows 和 Linux 之间共用 `.venv`；更换操作系统时在新解压目录重新安装。
+
+本仓库提供**源码和已构建前端**，没有捆绑 Python/xTB、离线安装器或免安装 EXE。GitHub Windows CI 会执行原生启动、进程生命周期和官方 xTB 水分子测试；这不能替代所有实际电脑、杀毒软件和企业策略组合的验收。
 
 ## Slurm 怎么设置
 
@@ -65,7 +85,7 @@ python3 tools/check_slurm.py
 | `cpus` | 每任务CPU数1–128；按集群规则选择 |
 | `memory_mb` | 内存MiB，128–262144 |
 | `time_minutes` | 时间上限1–1440分钟 |
-| `xtb_executable` | 远端xTB6.6.1绝对路径 |
+| `xtb_executable` | 远端 xTB 绝对路径 |
 | `environment_setup` | 管理员审核的模块加载／环境激活Bash；必须明确填写 |
 | `site_preamble` | 可选站点前置Bash，默认空 |
 
@@ -77,12 +97,12 @@ python3 tools/check_slurm.py
 
 默认只监听127.0.0.1:8765，Host/Origin限本机；无公网入口、隧道或远程发布代码。保持JSON、X-Workbench、Fetch Metadata跨站写入保护。不要把本程序直接监听公网。原子视觉连线为推断键，优化收敛不代表全局最低能。
 
-本机队列一次一个计算，一线程、600秒、2GiB、20MiB文件上限、最多20个排队任务；输入最大300原子和128KiB。参数固定GFN2、气相，科学成功要求实际6.6.1版本、SCC明确收敛、有限能量；优化另需几何收敛和对应有效结构。状态未知／不收敛不算成功。重启不会自动重跑未完成任务。
+本机队列一次一个计算，一线程、600秒、2GiB、20MiB文件上限、最多20个排队任务；输入最大300原子和128KiB。参数固定GFN2、气相，科学成功要求实际执行退出码为0、SCC明确收敛、有限能量；优化另需几何收敛和对应有效结构。状态未知／不收敛不算成功。重启不会自动重跑未完成任务。
 
 ## 开发和测试
 
 ```bash
-# 在setup创建的环境里，实引擎测试要求PATH/WORKBENCH_XTB指向xTB6.6.1
+# 在setup创建的环境里，实引擎测试要求 PATH/WORKBENCH_XTB 指向本机 xTB
 .venv/bin/python -m pytest -q
 # 重建前端：需要Node22+及npm，可联网下载开发依赖
 cd frontend

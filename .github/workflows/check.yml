@@ -1,17 +1,28 @@
-name: Offline checks
+name: Native Windows and Linux
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
-  linux:
-    runs-on: ubuntu-latest
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - run: python -m pip install -r requirements.lock.txt
-      - run: python -m pytest tests/test_slurm.py tests/test_navigation.py tests/test_local_access.py tests/test_portable.py -q
+      - name: Fetch checksummed official native xTB (CI only)
+        run: python tools/ci_engine.py "${{ runner.temp }}/xtb"
+      - run: python -m pytest -q
+      - run: python tools/portable.py check
+      - name: Native command launcher check
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: Start-Windows.cmd check
       - run: python tools/audit_release.py
       - uses: actions/setup-node@v4
         with:

@@ -1,5 +1,6 @@
 """Offline only: transport responses are fixtures, never a real SSH/Slurm call."""
 import json
+import os
 from pathlib import Path
 import pytest
 from backend.slurm import SlurmAdapter,Config,Unavailable,Unsafe,SSHTransport
@@ -87,6 +88,7 @@ def test_completed_is_not_scientific_success(tmp_path):
     t.responses=[row(j),b'xtb version 6.6.1',b'no convergence',WATER.encode()]
     r=a.collect(j['id']);assert not r['result']['valid'] and r['state']=='failed'
 
+@pytest.mark.skipif(os.name=='nt',reason='POSIX administrator config permissions; Windows scaffold disabled')
 def test_private_config_permissions_and_malformed(tmp_path):
     p=tmp_path/'admin.json';p.write_text(json.dumps(config().data));p.chmod(0o644)
     assert not Config.load(p).ready
@@ -112,8 +114,8 @@ def test_unverified_version_and_nonzero_exit_never_success(tmp_path):
     t=MockTransport([b'',b'12345\n']);a=create(tmp_path,t);j=submit(a)
     t.responses=[row(j,code='1:0')]
     with pytest.raises(Unsafe):a.collect(j['id'])
-    t.responses=[row(j),b'xtb version 6.7.0']
-    with pytest.raises(Unsafe):a.collect(j['id'])
+    t.responses=[row(j),b'xtb version 99.2.3',b'SCC NOT CONVERGED\nTOTAL ENERGY -5.0 Eh',WATER.encode()]
+    r=a.collect(j['id']);assert r['state']=='failed' and r['version']=='99.2.3'
 
 def test_ssh_argv_quoting_without_launching_ssh(monkeypatch):
     import backend.slurm as module
@@ -129,6 +131,7 @@ def test_ssh_argv_quoting_without_launching_ssh(monkeypatch):
     assert argv[-2]=='test-cluster' and shlex.split(argv[-1])==payload
     assert kw['shell'] is False
 
+@pytest.mark.skipif(os.name=='nt',reason='Remote helper executes only on POSIX Slurm hosts')
 def test_remote_helper_local_only_identity_symlink_and_size(tmp_path):
     import hashlib,subprocess,sys
     from backend.slurm_remote import REMOTE
@@ -158,3 +161,10 @@ def test_public_api_has_no_hpc_selection_or_admin_configuration(tmp_path):
         data={'xyz':WATER,'charge':0,'uhf':0,'mode':'sp','backend':'slurm'}
         assert c.post('/api/jobs',json=data,headers={'X-Workbench':'1'}).status_code==422
         assert c.get('/api/jobs').json()==[]
+
+
+def test_unknown_remote_version_with_convergence_succeeds(tmp_path):
+    t=MockTransport([b'',b'12345\n']);a=create(tmp_path,t)
+    j=a.submit({'xyz':WATER,'charge':0,'uhf':0,'mode':'sp'})
+    t.responses=[row(j),b'xtb version 99.2.3',b'*** convergence criteria satisfied after 5 iterations ***\nTOTAL ENERGY -5.0 Eh']
+    r=a.collect(j['id']);assert r['state']=='succeeded' and r['version']=='99.2.3'

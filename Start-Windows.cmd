@@ -1,13 +1,19 @@
 @echo off
 setlocal
-where wsl.exe >nul 2>nul
-if errorlevel 1 (
-  echo WSL2 is required. See README.md for installation and prerequisites.
-  pause
-  exit /b 1
+cd /d "%~dp0"
+if exist ".venv\Scripts\python.exe" (
+  ".venv\Scripts\python.exe" "tools\portable.py" %*
+) else (
+  where py >nul 2>nul
+  if errorlevel 1 (
+    python "tools\portable.py" %*
+  ) else (
+    py -3 "tools\portable.py" %*
+  )
 )
-rem --cd accepts a Windows path; trailing dot avoids trailing-backslash quoting.
-wsl.exe --cd "%~dp0." -- bash ./start-linux.sh
 set "result=%errorlevel%"
-if not "%result%"=="0" pause
+if not "%result%"=="0" (
+  echo Startup failed. Install native Python 3.10+ with pip/venv; see README.md.
+  pause
+)
 exit /b %result%

@@ -39,7 +39,7 @@ def test_real_jobs_and_snapshot(tmp_path):
         assert a['xyz']==WATER
         assert b['result']['geometry_converged'] is True
         assert c.get(f'/api/jobs/{opt}/files/final.xyz').status_code==200
-        assert c.get(f'/api/jobs/{opt}/files/provenance.json').json()['version']=='6.6.1'
+        assert c.get(f'/api/jobs/{opt}/files/provenance.json').json()['version']==c.get('/api/config').json()['version']
         assert c.get(f'/api/jobs/{opt}/files/input.xyz').text==WATER
         assert len(c.get('/api/jobs').json())==3
         assert wait(c,other)['status']=='succeeded'
@@ -85,12 +85,12 @@ def large_xyz():
 def test_running_cancellation_owns_only_engine(tmp_path):
     import subprocess
     s=JobStore(tmp_path)
-    unrelated=subprocess.Popen(['sleep','20'])
+    unrelated=subprocess.Popen([__import__('sys').executable,'-c','import time;time.sleep(20)'])
     try:
         jid=s.submit({'xyz':large_xyz(),'charge':0,'uhf':0,'mode':'opt'});s.start()
         for _ in range(400):
             with s.mu:
-                if s.process is not None and s.process.poll() is None and Path(f'/proc/{s.process.pid}/exe').resolve()==Path(s.get(jid)['executable']):
+                if s.process is not None and s.process.poll() is None and (s.directory(jid)/'output.log').stat().st_size>0:
                     p=s.process;break
             time.sleep(.005)
         else:raise AssertionError('No live engine')

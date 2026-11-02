@@ -59,7 +59,7 @@ def create_app(state_dir=None):
             return d,validated
         except (ValueError,TypeError,KeyError) as e:raise HTTPException(422,str(e))
     @app.get('/api/config')
-    def config():return {'version':store().version,'engine_error':store().engine_error,'limits':LIMITS,'elements':ELEMENTS,'method':'GFN2-xTB','phase':'gas'}
+    def config():return {'version':store().version,'engine_error':store().engine_error,'engine_warning':store().engine_warning,'backend':'local','backends':[{'id':'local','available':store().engine_error is None},{'id':'slurm','available':False}],'platform':os.name,'limits':LIMITS,'elements':ELEMENTS,'method':'GFN2-xTB','phase':'gas'}
     @app.post('/api/validate')
     async def validate(request:Request):
         _,v=await payload(request);return v

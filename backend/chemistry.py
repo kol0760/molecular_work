@@ -1,4 +1,4 @@
-"""Strict XYZ validation and conservative, version-specific xTB result acceptance."""
+"""Strict XYZ validation and conservative convergence-based xTB result acceptance."""
 import math
 import re
 
@@ -41,8 +41,6 @@ def validate_request(xyz,charge,uhf):
     return {'atoms':atoms,'electrons':electrons,'normalized_xyz':normalized_xyz(atoms)}
 
 def parse_result(log,mode,version,output, input_atoms):
-    actual=re.search(r'xtb version\s+(\d+\.\d+\.\d+)',log)
-    supported=version=='6.6.1' and actual is not None and actual[1]==version
     energies=re.findall(r'TOTAL ENERGY\s+([-+\d.eEdD]+)\s+Eh',log)
     try: energy=float(energies[-1].replace('D','E')) if energies else None
     except ValueError: energy=None
@@ -65,6 +63,6 @@ def parse_result(log,mode,version,output, input_atoms):
             if not m or energy is None or abs(float(m[1])-energy)>1e-8: raise ValueError('Final structure energy does not match log.')
             final=output
         except ValueError as e: reason=str(e)
-    valid=supported and scc is True and energy is not None and (mode=='sp' or (geometry is True and final is not None))
-    if not valid and reason.startswith('Validated'): reason='Unconfirmed convergence, energy, engine version or final structure; inspect log.'
-    return {'valid':valid,'scc_converged':scc,'geometry_converged':geometry,'energy_hartree':energy,'energy_unit':'Eh','final_xyz':final if valid else None,'reason':reason,'parser_version':'xtb-6.6.1-v1'}
+    valid=scc is True and energy is not None and (mode=='sp' or (geometry is True and final is not None))
+    if not valid and reason.startswith('Validated'): reason='Unconfirmed convergence, energy or final structure; inspect log.'
+    return {'valid':valid,'scc_converged':scc,'geometry_converged':geometry,'energy_hartree':energy,'energy_unit':'Eh','final_xyz':final if valid else None,'reason':reason,'parser_version':'xtb-convergence-v2'}
