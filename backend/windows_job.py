@@ -60,6 +60,7 @@ def run(parent,argv):
     # Child inherits membership, never the non-inheritable job handle.
     child=subprocess.Popen(argv,shell=False,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result=child.wait()
-    kernel.CloseHandle(owner)
-    # Process exit closes job and terminates remaining descendants.
+    # Keep owner open while the daemon watcher waits on it: closing a handle
+    # during WaitForSingleObject is undefined. Process exit closes both handles
+    # and the job terminates remaining descendants.
     return result

@@ -168,3 +168,24 @@ def test_native_launcher_http_and_owner_shutdown(tmp_path):
             if sock.connect_ex(('127.0.0.1',port))!=0:break
         time.sleep(.05)
     else:raise AssertionError('API survived launcher exit')
+
+
+@pytest.mark.skipif(os.name!='nt',reason='Windows Job Object descendant containment')
+def test_windows_runner_exit_kills_engine_grandchildren(tmp_path):
+    runner=Path(__file__).resolve().parents[1]/'backend/runner.py'
+    marker=tmp_path/'grandchild-heartbeat'
+    heartbeat=tmp_path/'heartbeat.py'
+    heartbeat.write_text('import pathlib,time,sys\np=pathlib.Path(sys.argv[1])\nwhile True:\n p.write_text(str(time.time()))\n time.sleep(.03)\n')
+    engine=tmp_path/'engine.py'
+    engine.write_text('import subprocess,sys,time\nsubprocess.Popen([sys.executable,sys.argv[1],sys.argv[2]])\nwhile True:time.sleep(1)\n')
+    p=subprocess.Popen([sys.executable,str(runner),str(os.getpid()),sys.executable,str(engine),str(heartbeat),str(marker)])
+    try:
+        for _ in range(200):
+            if marker.exists():break
+            time.sleep(.025)
+        assert marker.exists()
+        p.kill();p.wait();time.sleep(.3)
+        before=marker.read_text();time.sleep(.2)
+        assert marker.read_text()==before
+    finally:
+        if p.poll() is None:p.kill();p.wait()
